@@ -98,10 +98,10 @@ void setup() {
   softSerial.begin(9600);
 #endif
 
-  pinMode(pinSensor, INPUT);
+  // pinMode(pinSensor, INPUT);
 
 #ifdef LED_DISPLAY_ENABLED
-  display.setBrightness(0x0f);
+  // display.setBrightness(0x0f);
 #else
   pinMode(pinLedLow, OUTPUT);
   pinMode(pinLedHigh, OUTPUT);

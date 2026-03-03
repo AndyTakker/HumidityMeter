@@ -29,12 +29,15 @@ const uint8_t digitToSegment[] = {
     0b00000111, // 7
     0b01111111, // 8
     0b01101111, // 9
-    0b01110111, // A
+    0b01110111  // A
+#ifndef DISPLAY_NO_LETTERS
+    ,
     0b01111100, // b
     0b00111001, // C
     0b01011110, // d
     0b01111001, // E
     0b01110001  // F
+#endif
 };
 
 static const uint8_t minusSegments = 0b01000000;
@@ -44,6 +47,7 @@ TM1637Display::TM1637Display(PinName pinClk, PinName pinDIO, unsigned int bitDel
   m_pinClk = pinClk;
   m_pinDIO = pinDIO;
   m_bitDelay = bitDelay;
+  m_brightness = 0x0F;  // По умолчанию максимальная яркость и дисплей включен
 
   // Set the pin direction and default value.
   // Both pins are set as inputs, allowing the pull-up resistors to pull them up
