@@ -143,7 +143,7 @@ class TM1637Display {
   uint8_t encodeDigit(uint8_t digit);
 
   protected:
-  void bitDelay();
+  // void bitDelay();
 
   void start();
 

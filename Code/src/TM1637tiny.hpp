@@ -9,6 +9,8 @@
 #define PIN_DIO PB4 // DIO Дисплей
 // #define ADC_NUM A1 // Номер аналогового входа на PB2
 
+#define BIT_DELAY 100
+
 // --- Таблица сегментов (Строго во Flash) ---
 const uint8_t digitToSegment[] PROGMEM = {
     0b00111111, 0b00000110, 0b01011011, 0b01001111,
@@ -29,12 +31,12 @@ void tm_write_byte(uint8_t b) {
     }
     b >>= 1;
     PORTB |= (1 << PIN_CLK); // CLK High
-    _delay_us(2);            // Минимальная задержка
+    _delay_us(BIT_DELAY);            // Минимальная задержка
   }
   // ACK
   DDRB &= ~(1 << PIN_DIO); // Input
   PORTB |= (1 << PIN_CLK);
-  _delay_us(2);
+  _delay_us(BIT_DELAY);
   PORTB &= ~(1 << PIN_CLK);
   DDRB |= (1 << PIN_DIO); // Output
 }
@@ -43,11 +45,11 @@ void tm_show_number(uint8_t num) {
   // 1. Команда записи данных
   DDRB |= (1 << PIN_DIO);
   PORTB &= ~(1 << PIN_DIO); // Start
-  _delay_us(2);
+  _delay_us(BIT_DELAY);
   tm_write_byte(0x40); // Comm1
   PORTB |= (1 << PIN_DIO);
   DDRB &= ~(1 << PIN_DIO); // Stop
-  _delay_us(2);
+  _delay_us(BIT_DELAY);
 
   // 2. Адрес
   DDRB |= (1 << PIN_DIO);
@@ -67,7 +69,7 @@ void tm_show_number(uint8_t num) {
 
   PORTB |= (1 << PIN_DIO);
   DDRB &= ~(1 << PIN_DIO); // Stop
-  _delay_us(2);
+  _delay_us(BIT_DELAY);
 
   // 4. Дисплей ON + Яркость
   DDRB |= (1 << PIN_DIO);
@@ -75,5 +77,5 @@ void tm_show_number(uint8_t num) {
   tm_write_byte(0x8F);      // Comm3 + Max Brightness
   PORTB |= (1 << PIN_DIO);
   DDRB &= ~(1 << PIN_DIO); // Stop
-  _delay_us(2);
+  _delay_us(BIT_DELAY);
 }

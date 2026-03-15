@@ -1,21 +1,23 @@
 //============================================================= (c) A.Kolesov ==
 // Измерение влажности почвы с помощью аналогового датчика HW-390
-// Поскольку точность датчика - лаптем по карте, цифровая индикация смысла не имеет
-// Будем отображать светодиодами три уровня: низкий/в норме/высокий.
+// Способы индикации:
+// 1. Светодиодами показываем три уровня: низкий/в норме/высокий
+// 2. Показываем процент влажности на LED-дисплее.
+//
 // Техническая реализация:
-// - делаем на Attiny85, отлаживаемся и калибруем через SoftwareSerial и прошиваем
-//   через сервисный интерфейс Arduino IDE
-// - затем все переносим  на Attiny13
+// - выбираем окружение для digispark 
+// - отлаживаемся и калибруем через SoftwareSerial и прошиваем через micronucleus
+// - выбираем окружение для attiny13
+// - компилируем и прошиваем в Attiny13 программатором
 //
 // Напоминалка, как работать с Digispark + Micronucleus
 //  1. Компилируем и загружаем код в VSCode+PlatformIO
-//  2. В момент загузки, по подсказке VSCode, подключаем Digispark к USB
+//  2. В момент загрузки, по подсказке VSCode, подключаем Digispark к USB
 //  3. После прошивки отключаем от USB.
 //  4. Подключаем конвертор USB-UART к пинам Digispark (RX/TX SoftwareSerial)
 //  5. Отлаживаемся через Serial Monitor и print(). Одновременно USB и конвертор
 //     не работают.
 //  6. Итоговую прошивку записываем в контроллер програматором.
-// Если используется LED_DISPLAY_ENABLED, на момент прошивки его надо отключать.
 // Светодиоды на шинах дисплея не мешают дисплею.
 //
 // Для большинства растений в обычном грунте актуальны следующие значения:
@@ -32,7 +34,9 @@
 // Влаголюбивые	    60% – 85%	Огурцы, циперус, папоротники
 //------------------------------------------------------------------------------
 #include <Arduino.h>
-#ifndef ATtiny13
+#include <util/delay.h>
+
+#ifdef LOG_ENABLE
 #include <Soft_Serial.h>
 #endif
 #ifdef LED_DISPLAY_ENABLED
@@ -40,8 +44,8 @@
 #endif
 
 // Конфигурируем железо
-#define pinRx PB0     // Вывод RX для serial (не используется)
-#define pinTx PB1     // Вывод TX для serial
+#define pinRx PB3     // Вывод RX для serial (не используется)
+#define pinTx PB4     // Вывод TX для serial
 #define pinSensor PB2 // Вход датчика влажности
 #ifdef ATtiny13
 #define ADC_NUM A1 // Номер аналогового входа на PB2
@@ -50,8 +54,8 @@
 #endif
 
 #ifdef LED_DISPLAY_ENABLED
-#define CLK PB3
-#define DIO PB4
+#define CLK PB0
+#define DIO PB1
 #else
 #define pinLedLow PB3  // Светодиод низкого уровня влажности
 #define pinLedHigh PB4 // Светодиод высокого уровня влажности
@@ -60,8 +64,8 @@
 // Зададим пороговые значения влажности
 #define RAW_SENSOR_100 190 // Абсолютные показания датчика влажности при 100% (в воде)
 #define RAW_SENSOR_0 465   // Абсолютные показания датчика влажности при 0% (в воздухе)
-#define HUMIDITY_LOW 30    // Нижняя граница влажности (%)
-#define HUMIDITY_HIGH 65   // Верхняя граница влажности (%)
+#define HUMIDITY_LOW 30    // Нижняя граница влажности (%) (при использовании светодиодов)
+#define HUMIDITY_HIGH 65   // Верхняя граница влажности (%) (при использовании светодиодов)
 
 #define SCAN_PERIOD 500 // Период сканирования датчика (ms)
 
@@ -71,7 +75,7 @@
 #define HIGH_ON() digitalWrite(pinLedHigh, HIGH)
 #define HIGH_OFF() digitalWrite(pinLedHigh, LOW)
 
-#ifndef ATtiny13
+#ifdef LOG_ENABLE
 // Создадим последовательный порт, через который будем работать
 SoftwareSerial softSerial(pinRx, pinTx);
 #endif
@@ -80,8 +84,11 @@ SoftwareSerial softSerial(pinRx, pinTx);
 TM1637Display display(CLK, DIO);
 #endif
 
+//==============================================================================
+// Выводим текущий уровень влажности в лог и на индикаторы
+//------------------------------------------------------------------------------
 void printLog(uint16_t hm) {
-#ifndef ATtiny13
+#ifdef LOG_ENABLE
   char str[10];
   sprintf(str, "Humidity: %d%%\r\n", hm);
   softSerial.print(str);
@@ -94,24 +101,20 @@ void printLog(uint16_t hm) {
 
 //------------------------------------------------------------------------------
 void setup() {
-#ifndef ATtiny13
+#ifdef LOG_ENABLE
   softSerial.begin(9600);
 #endif
 
-  // pinMode(pinSensor, INPUT);
-
-#ifdef LED_DISPLAY_ENABLED
-  // display.setBrightness(0x0f);
-#else
+#ifndef LED_DISPLAY_ENABLED
   pinMode(pinLedLow, OUTPUT);
   pinMode(pinLedHigh, OUTPUT);
 
   for (int i = 0; i < 3; i++) { // Помигаем как признак жизни
     LOW_ON();
-    delay(500);
+    _delay_ms(500);
     LOW_OFF();
     HIGH_ON();
-    delay(500);
+    _delay_ms(500);
     HIGH_OFF();
   }
   LOW_OFF();
@@ -124,10 +127,15 @@ void setup() {
 // уровень светодиодами.
 //------------------------------------------------------------------------------
 void loop() {
-  uint16_t hm = 0;                                    // Значение влажности
-  hm = analogRead(ADC_NUM);                           // Абсолютные показания датчика
-  hm = constrain(hm, (uint16_t)RAW_SENSOR_100, (uint16_t)RAW_SENSOR_0);   // Ограничим возможные всплески выхода за диапазон
-  hm = map(hm, RAW_SENSOR_0, RAW_SENSOR_100, 0, 100); // Конвертируем в %
+  uint16_t hm = 0;          // Значение влажности
+  hm = analogRead(ADC_NUM); // Абсолютные показания датчика
+  hm = constrain(hm, (uint16_t)RAW_SENSOR_100, (uint16_t)RAW_SENSOR_0); // Ограничим возможные всплески выхода за диапазон
+
+  // hm = map(hm, RAW_SENSOR_0, RAW_SENSOR_100, 0, 100);                   // Конвертируем в %
+  // Расчет процентов (вместо map)
+  // Формула: 
+  // return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+  hm = (int16_t)((int16_t)((hm - RAW_SENSOR_0) * 100) / (int16_t)(RAW_SENSOR_100 - RAW_SENSOR_0));
   printLog(hm);
 
 #ifndef LED_DISPLAY_ENABLED
@@ -144,5 +152,5 @@ void loop() {
   }
 #endif
 
-  delay(SCAN_PERIOD);
+  _delay_ms(SCAN_PERIOD);
 }

@@ -6,8 +6,12 @@
 // --- Пины ATtiny13 ---
 // #define PIN_CLK PB3 // CLK Дисплей
 // #define PIN_DIO PB4 // DIO Дисплей
-#define ADC_NUM A1 // Номер аналогового входа на PB2
 
+#ifdef ATtiny13
+#define ADC_NUM A1 // Номер аналогового входа на PB2
+#else
+#define ADC_NUM 1 // Номер аналогового входа на PB2
+#endif
 // --- Калибровка ---
 #define RAW_MAX 190 // Вода (0%)
 #define RAW_MIN 465 // Воздух (100%)
@@ -104,5 +108,5 @@ void loop() {
 
   tm_show_number(hum);
 
-  _delay_ms(500);
+  delay(500);
 }
