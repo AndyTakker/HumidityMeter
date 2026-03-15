@@ -40,7 +40,7 @@
 #endif
 
 // Конфигурируем железо
-#define pinRx PB0     // Вывод RX для serial
+#define pinRx PB0     // Вывод RX для serial (не используется)
 #define pinTx PB1     // Вывод TX для serial
 #define pinSensor PB2 // Вход датчика влажности
 #ifdef ATtiny13
